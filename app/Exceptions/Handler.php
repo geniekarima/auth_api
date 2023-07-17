@@ -4,7 +4,9 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;use App\Traits\Base;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use App\Traits\Base;
+use Illuminate\Auth\AuthenticationException;
 
 class Handler extends ExceptionHandler
 {
@@ -39,5 +41,13 @@ class Handler extends ExceptionHandler
                 return Base::error('URL Not Found');
             }
         });
+    }
+    public function unauthenticated($request, AuthenticationException $exception)
+    {
+        if (!$request->expectsJson()) {
+            if (collect($request->route()->middleware())->contains('api')) {
+                 return Base::error("You are not logged in.", [], 'not_auth');
+            }
+         }
     }
 }

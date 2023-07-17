@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::post('login', function () {
+    return 'WRONG';
+})->name('login');
+
 Route::get('/', function () {
     return view('welcome');
 });

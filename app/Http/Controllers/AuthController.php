@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
+use App\Notifications\OtpNotification;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
@@ -40,7 +42,6 @@ class AuthController extends Controller
             }
 
         } catch (\Exception $e) {
-            // Handle other exceptions here (if needed)
             return Base::exception($e);
         }
     }
@@ -55,20 +56,25 @@ class AuthController extends Controller
                 'password' => 'required|string|min:6',
             ]);
             if ($validateData->fails()) return Base::validation($validateData);
-            // Generate an OTP and set the expiration time (e.g., 5 minutes from now)
-                $otp = rand(100000, 999999); // Generate a random 6-digit OTP
-                $otpExpiresAt = now()->addMinutes(5);
 
-          $user =  User::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'otp' => $otp,
-                'otp_expires_at' => $otpExpiresAt,
+            $otp = rand(100000, 999999); // Generate a random 6-digit OTP
+            $otpExpiresAt = now()->addSeconds(120);
 
-            ]);
-            // Generate an access token for the user using Laravel Passport
-            // $user = User::create($data);
+            $user =  User::create([
+                    'name' => $request->name,
+                    'email' => $request->email,
+                    'password' => Hash::make($request->password),
+                    'otp' => Hash::make($otp),
+                    'otp_expires_at' => $otpExpiresAt,
+
+                    ]);
+
+            $messages = [
+                'name' => $user->name,
+                'body' => "Your Otp code is: ". $otp,
+            ];
+            $user->notify(new OtpNotification($messages));
+
             $accessToken = $user->createToken('authToken')->accessToken;
             $data = [
                 'token' => $accessToken,
@@ -77,97 +83,155 @@ class AuthController extends Controller
             return Base::success('User registered successfully', $data);
 
         } catch (Exception $e) {
-            // Handle other exceptions here (if needed)
             return Base::exception($e);
         }
 
-        // $data['password'] = Hash::make($data['password']);
-
-        // Generate and set OTP
-        // $data['otp'] = rand(100000, 999999);
-        // $data['otp_expires_at'] = now()->addMinutes(5); // OTP expiration time: 5 minutes
-
-        // $user = User::create($data);
-        // $token = $user->createToken('authToken')->accessToken;
-
-        // Send the OTP to the user (you can use Laravel Mail here)
-        // Example: Mail::to($user->email)->send(new SendOTP($user->otp));
-
-
     }
 
-    // // Forgot Password
-    // public function forgotPassword(Request $request)
-    // {
-    //     $request->validate(['email' => 'required|email']);
+    public function verifyOtp(Request $request)
+    {
+        try {
+            $validateData = $request->only('otp');
 
-    //     $response = Password::sendResetLink($request->only('email'));
+            $user = Auth::user();
 
-    //     if ($response === Password::RESET_LINK_SENT) {
-    //         return response()->json(['message' => 'Password reset link sent'], 200);
-    //     }
+            if ($user && Hash::check($validateData['otp'], $user->otp)) {
+                // Check if OTP has expired
+                if ($user->otp_expires_at && now()->gt($user->otp_expires_at)) {
+                    // $user->update([
+                    //     'otp' => null,
+                    //     'otp_expires_at' => null,
+                    //     'otp_verified' => 0 // Mark it as not verified
+                    // ]);
+                    return Base::error('OTP has expired. Please request a new OTP.');
+                }
 
-    //     throw ValidationException::withMessages(['email' => 'Unable to send reset link']);
-    // }
 
-    // // OTP Verification
-    // public function verifyOtp(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'email' => 'required|email',
-    //         'otp' => 'required|string',
-    //     ]);
+                $user->update([
+                    'otp' => null,
+                    'otp_expires_at' => null,
+                    'otp_verified' => 1
+                ]);
 
-    //     if ($validator->fails()) {
-    //         throw ValidationException::withMessages($validator->errors()->toArray());
-    //     }
+                return Base::success('OTP verification successful.');
+            } else {
+                return Base::error('Invalid OTP.');
+            }
 
-    //     $user = User::where('email', $request->email)->first();
+        } catch (Exception $e) {
+            return Base::exception($e);
+        }
+    }
 
-    //     if (!$user) {
-    //         throw ValidationException::withMessages(['email' => 'User not found']);
-    //     }
+    public function resendOtp()
+    {
+        try {
+            $user = Auth::user();
+            $otp = rand(100000, 9999999);
+            // $otpExpiration = now()->addSeconds(120);
+            $user->update([
+                'otp' => Hash::make($otp),
+                'otp_expires_at' => Carbon::now()->addSeconds(120),
+            ]);
 
-    //     // Check if OTP exists and if it's still valid
-    //     if ($user->otp && $user->otp_expires_at >= now()) {
-    //         if ($user->otp === $request->otp) {
-    //             // Reset the OTP and set the OTP verification flag to true
-    //             $user->otp = null;
-    //             $user->otp_verified = true;
-    //             $user->save();
+            $messages = [
+                'name' => $user->name,
+                'body'=>"Your Otp code is: ". $otp,
+            ];
 
-    //             return response()->json(['message' => 'OTP verified successfully'], 200);
-    //         } else {
-    //             throw ValidationException::withMessages(['otp' => 'Invalid OTP']);
-    //         }
-    //     } else {
-    //         throw ValidationException::withMessages(['otp' => 'OTP has expired']);
-    //     }
-    // }
+            $user->notify(new OtpNotification($messages));
 
-    // // Reset Password
-    // public function resetPassword(Request $request)
-    // {
-    //     $request->validate([
-    //         'email' => 'required|email',
-    //         'password' => 'required|string|min:6|confirmed',
-    //         'token' => 'required|string',
-    //     ]);
+            return Base::success('OTP has been resend.');
 
-    //     $response = Password::reset($request->only(
-    //         'email', 'password', 'password_confirmation', 'token'
-    //     ), function ($user, $password) {
-    //         $user->forceFill([
-    //             'password' => Hash::make($password),
-    //             'remember_token' => Str::random(60),
-    //         ])->save();
-    //     });
+        } catch (Exception $e) {
+            return Base::exception($e);
+        }
+    }
+    public function forgetPassword (Request $request)
+    {
+        // return $request;
+        try {
+            // $validateData = $request->validate([
+            //     'email' => 'required|email|exists:users,email',
+            // ]);
+            $validateData = Validator::make($request->all(),[
+                'email' => 'required|email',
+            ]);
+            if ($validateData->fails()) return Base::validation($validateData);
 
-    //     if ($response === Password::PASSWORD_RESET) {
-    //         return response()->json(['message' => 'Password reset successful'], 200);
-    //     }
+            $user = User::where('email', $request->email)->first();
 
-    //     throw ValidationException::withMessages(['email' => 'Unable to reset password']);
-    // }
+            if(!$user) return Base::error('user not found');
+
+            $otp = rand(100000, 9999999);
+
+            $otpExpiration = Carbon::now()->addSeconds(120);
+
+
+            $user->update([
+                'otp' => Hash::make($otp),
+                'otp_expires_at' => $otpExpiration,
+            ]);
+
+            $data = [
+                'name' => $user->name,
+                'otp' => $otp,
+            ];
+
+            $messages = [
+                'name' => $user->name,
+                'body' => "Your Otp code is: ". $otp,
+            ];
+            $user->notify(new OtpNotification($messages));
+
+            return Base::success('OTP has been sent to your email. Please check your inbox.');
+
+        } catch (Exception $e) {
+            return Base::exception($e);
+        }
+    }
+
+    public function verifyforgetPassword(Request $request)
+    {
+        try {
+            $validateData = Validator::make($request->all(), [
+                'email' => 'required|email',
+                'otp' => 'required',
+                'password_confirmation' => 'required|min:6|confirmed',
+            ]);
+
+            if ($validateData->fails()) return Base::validation($validateData);
+
+            $user = User::where('email', $request->email)->first();
+
+            if (!$user) return Base::error('User not found.');
+
+            // Check if the OTP matches and is not expired
+            if ($user->otp && Hash::check($request->otp, $user->otp) && $user->otp_expires_at && now()->lt($user->otp_expires_at)) {
+
+                if ($request->password !== $request->password_confirmation) {
+                    return Base::error('Passwords do not match. Please try again.');
+                }
+                // OTP verification successful and not expired, proceed with password reset
+                $user->update([
+                    'password' => Hash::make($request->password),
+                    'otp' => null,
+                    'otp_expires_at' => null,
+                ]);
+
+                return Base::success('Forget Password verification successful.');
+            } else {
+                // OTP verification failed or expired
+                return Base::error('Invalid OTP or expired. Please try again.');
+            }
+
+        } catch (Exception $e) {
+            return Base::exception($e);
+        }
+}
+
+
+
+
 }
 
