@@ -11,8 +11,8 @@ use App\Http\Middleware\Authenticate;
 //     return $request->user();
 // });
 
-Route::prefix('auth')->group(function(){
-   // Login
+Route::prefix('auth')->group(function () {
+    // Login
     Route::post('login', [AuthController::class, 'login']);
     // Register
     Route::post('register', [AuthController::class, 'register']);
@@ -21,11 +21,10 @@ Route::prefix('auth')->group(function(){
     // resend OTP
     Route::post('resendOtp', [AuthController::class, 'resendOtp'])->middleware('auth:api');
     // Forget Password
-      Route::post('forget-password', [AuthController::class, 'forgetPassword']);
-       // Verify Forget Password
-       Route::post('verify-forget-password', [AuthController::class, 'verifyforgetPassword']);
+    Route::post('forget-password', [AuthController::class, 'forgetPassword']);
+    // Verify Forget Password
+    Route::post('verify-forget-password', [AuthController::class, 'verifyforgetPassword']);
     // Reset Password
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
 
 });
-
