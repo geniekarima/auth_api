@@ -57,8 +57,8 @@ class AuthController extends Controller
             if ($validateData->fails())
                 return Base::validation($validateData);
 
-            $otp = rand(100000, 999999); // Generate a random 6-digit OTP
-            $otpExpiresAt = now()->addSeconds(120);
+            $otp = rand(100000, 999999);
+            $otpExpiresAt = now()->addSeconds(300);
 
             $user = User::create([
                 'name' => $request->name,
@@ -82,7 +82,7 @@ class AuthController extends Controller
             ];
             return Base::success('User registered successfully', $data);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return Base::exception($e);
         }
 
@@ -124,7 +124,7 @@ class AuthController extends Controller
             // $otpExpiration = now()->addSeconds(120);
             $user->update([
                 'otp' => Hash::make($otp),
-                'otp_expires_at' => Carbon::now()->addSeconds(120),
+                'otp_expires_at' => Carbon::now()->addSeconds(300),
             ]);
 
             $messages = [
@@ -136,7 +136,7 @@ class AuthController extends Controller
 
             return Base::success('OTP has been resend.');
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return Base::exception($e);
         }
     }
@@ -144,9 +144,6 @@ class AuthController extends Controller
     {
         // return $request;
         try {
-            // $validateData = $request->validate([
-            //     'email' => 'required|email|exists:users,email',
-            // ]);
             $validateData = Validator::make($request->all(), [
                 'email' => 'required|email',
             ]);
@@ -160,18 +157,13 @@ class AuthController extends Controller
 
             $otp = rand(100000, 9999999);
 
-            $otpExpiration = Carbon::now()->addSeconds(120);
+            $otpExpiration = Carbon::now()->addSeconds(300);
 
 
             $user->update([
                 'otp' => Hash::make($otp),
                 'otp_expires_at' => $otpExpiration,
             ]);
-
-            $data = [
-                'name' => $user->name,
-                'otp' => $otp,
-            ];
 
             $messages = [
                 'name' => $user->name,
@@ -181,7 +173,7 @@ class AuthController extends Controller
 
             return Base::success('OTP has been sent to your email. Please check your inbox.');
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return Base::exception($e);
         }
     }
@@ -202,18 +194,21 @@ class AuthController extends Controller
             if (!$user)
                 return Base::error('User not found.');
 
-            // Check if the OTP matches and is not expired
+            $otp = rand(100000, 9999999);
             if ($user->otp && Hash::check($request->otp, $user->otp) && $user->otp_expires_at && now()->lt($user->otp_expires_at)) {
                 $user->update([
-                    'otp' => null,
+                    'otp' => $otp,
                 ]);
-                return Base::success('Forget Password verification successful.');
+                $data = [
+                    'token' => $otp,
+                    'user' => $user,
+                ];
+                return Base::success('Forget Password verification successful.', $data);
             } else {
-                // OTP verification failed or expired
                 return Base::error('Invalid OTP or expired. Please try again.');
             }
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return Base::exception($e);
         }
     }
@@ -222,7 +217,9 @@ class AuthController extends Controller
         try {
             $validateData = Validator::make($request->all(), [
                 'email' => 'required|email',
-                'password' => 'required|min:6|confirmed',
+                'password' => 'required|string|min:6|confirmed',
+                'password_confirmation' => 'required',
+                'token' => 'required',
             ]);
 
             if ($validateData->fails())
@@ -232,20 +229,22 @@ class AuthController extends Controller
 
             if (!$user)
                 return Base::error('User not found.');
-
-            // Update the user's password
+            // $data = [
+            //     'token' => $user->otp,
+            // ];
+            if (!$user->otp || $user->otp !== $request->token) {
+                return Base::error('Invalid OTP token. Please try again or request a new one.');
+            }
             $user->update([
                 'password' => Hash::make($request->password),
+                'otp' => null,
             ]);
 
-            return Base::success('Password has been successfully reset.');
+            return Base::success('Password has been successfully reset');
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return Base::exception($e);
         }
     }
-
-
-
 
 }

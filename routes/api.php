@@ -26,5 +26,7 @@ Route::prefix('auth')->group(function () {
     Route::post('verify-forget-password', [AuthController::class, 'verifyforgetPassword']);
     // Reset Password
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
+    // Change Password
+    Route::post('change-password', [AuthController::class, 'changePassword']);
 
 });
