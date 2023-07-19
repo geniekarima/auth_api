@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            // $table->enum('role', ['employee', 'owner'])->default('employee');
             $table->string('otp')->nullable(); // For OTP verification
             $table->timestamp('otp_expires_at')->nullable(); // For OTP expiration time
             $table->boolean('otp_verified')->default(false); // For OTP verification status

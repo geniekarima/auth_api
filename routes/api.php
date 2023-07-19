@@ -27,6 +27,19 @@ Route::prefix('auth')->group(function () {
     // Reset Password
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
     // Change Password
-    Route::post('change-password', [AuthController::class, 'changePassword']);
+    Route::post('change-password', [AuthController::class, 'changePassword'])->middleware('auth:api');
+});
 
+// Route::group(['middleware' => ['auth:api', 'role:employee,owner']], function () {
+//     // Routes accessible by employees and owners
+// });
+
+
+Route::group(['middleware' => ['auth:api', 'role:owner']], function () {
+    // Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+});
+
+Route::group(['middleware' => ['auth:api', 'role:employee']], function () {
+
+    // Route::get('/employee/profile', [EmployeeController::class, 'profile']);
 });

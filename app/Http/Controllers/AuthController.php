@@ -26,7 +26,17 @@ class AuthController extends Controller
         try {
             $credentials = $request->only(['email', 'password']);
 
-            $user = User::where('email', $credentials['email'])->first();
+            $user = User::where('email', $request->email)->first();
+
+            if(!$user) return Base::error('User not found');
+
+            //role
+            if ($user->role != 'employee')
+                return Base::fail('You can not login with this account');
+
+            if ($user->otp_verified != true)
+                return Base::error('User not verified');
+
 
             if (Auth::attempt($credentials)) {
                 $user = Auth::user();
@@ -52,22 +62,26 @@ class AuthController extends Controller
             $validateData = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string|min:6',
+                'password' => 'required|string|min:6'
             ]);
+
             if ($validateData->fails())
                 return Base::validation($validateData);
 
             $otp = rand(100000, 999999);
             $otpExpiresAt = now()->addSeconds(300);
+            $role = $request->header('role');
 
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
+                // 'role' => $role,
                 'otp' => Hash::make($otp),
                 'otp_expires_at' => $otpExpiresAt,
 
             ]);
+            $accessToken = $user->createToken('authToken')->accessToken;
 
             $messages = [
                 'name' => $user->name,
@@ -75,7 +89,7 @@ class AuthController extends Controller
             ];
             $user->notify(new OtpNotification($messages));
 
-            $accessToken = $user->createToken('authToken')->accessToken;
+
             $data = [
                 'token' => $accessToken,
                 'user' => $user
@@ -246,5 +260,41 @@ class AuthController extends Controller
             return Base::exception($e);
         }
     }
+
+    public function changePassword(Request $request)
+    {
+        try {
+            $validateData = Validator::make($request->all(), [
+                'old_password' => 'required|string',
+                'new_password' => 'required|string|min:6|confirmed',
+                'new_password_confirmation' => 'required',
+            ]);
+
+            if ($validateData->fails()) {
+                return Base::validation($validateData);
+
+            }
+
+            $user = Auth::user();
+
+            if (!Hash::check($request->old_password, $user->password)) {
+                return Base::error('Invalid current password');
+            }
+
+            if (Hash::check($request->new_password, $user->password)) {
+                return Base::error('New password cannot be the same as the old password');
+            }
+
+            $user->update([
+                'password' => Hash::make($request->password),
+            ]);
+
+            return Base::success('Password has been successfully changed');
+
+        } catch (\Exception $e) {
+            return Base::exception($e);
+        }
+    }
+
 
 }
