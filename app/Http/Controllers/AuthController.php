@@ -70,7 +70,7 @@ class AuthController extends Controller
 
             $otp = rand(100000, 999999);
             $otpExpiresAt = now()->addSeconds(300);
-            $role = $request->header('role');
+            //$role = $request->header('role');
 
             $user = User::create([
                 'name' => $request->name,
@@ -204,6 +204,13 @@ class AuthController extends Controller
                 return Base::validation($validateData);
 
             $user = User::where('email', $request->email)->first();
+
+            // $responseData =[
+            //     'id'=> $user-> id,
+            //     'name'=> $user-> email,
+            //     'email'=> $user-> email,
+            //     'otp_verified'=> $user-> otp_verified,
+            // ];
 
             if (!$user)
                 return Base::error('User not found.');
