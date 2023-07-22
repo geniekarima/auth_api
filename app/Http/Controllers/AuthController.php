@@ -302,6 +302,21 @@ class AuthController extends Controller
             return Base::exception($e);
         }
     }
+    //logout
+    public function logout(Request $request){
+        $user = Auth::user()->token;
+        $user->revoke();
+    }
+    // public function logout(Request $request){
+    //     $user = Auth::user(); // Retrieve the authenticated user
+    //     $user->token()->revoke(); // Revoke the user's access token
+
+    //     // Optionally, you can clear the user's remember me cookie (if used in your application)
+    //     auth()->guard('api')->logout();
+
+    //     return Base::success('Logout successful');
+    // }
+
 
 
 }

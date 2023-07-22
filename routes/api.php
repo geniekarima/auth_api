@@ -28,6 +28,8 @@ Route::prefix('auth')->group(function () {
     Route::post('reset-password', [AuthController::class, 'resetPassword']);
     // Change Password
     Route::post('change-password', [AuthController::class, 'changePassword'])->middleware('auth:api');
+    //Logout
+    Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:api');
 });
 
 // Route::group(['middleware' => ['auth:api', 'role:employee,owner']], function () {

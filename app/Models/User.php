@@ -40,4 +40,8 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+    // public function token()
+    // {
+    //     return $this->hasOne(Token::class); // For example, if User has one Token
+    // }
 }
