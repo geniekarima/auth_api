@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TodoListController;
 use App\Http\Middleware\Authenticate;
 
 
@@ -45,3 +46,5 @@ Route::group(['middleware' => ['auth:api', 'role:employee']], function () {
 
     // Route::get('/employee/profile', [EmployeeController::class, 'profile']);
 });
+
+Route::get('todo-list',[TodoListController::class,'index'])->name('todo-list.store');
